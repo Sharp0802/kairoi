@@ -9,11 +9,34 @@ use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::SystemTime;
 use tokio::task_local;
 
+#[derive(Debug, Copy, Clone)]
+pub struct Progress {
+    total: u64,
+    progress: u64
+}
+
+impl Progress {
+    pub fn new(total: u64, progress: u64) -> Self {
+        Self {
+            total,
+            progress,
+        }
+    }
+
+    pub fn total(&self) -> u64 {
+        self.total
+    }
+
+    pub fn progress(&self) -> u64 {
+        self.progress
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SpanData {
     timestamp: SystemTime,
     name: String,
-    progress: Option<f32>,
+    progress: Option<Progress>,
 }
 
 impl SpanData {
@@ -23,7 +46,7 @@ impl SpanData {
         clone
     }
 
-    pub fn with_progress(&self, progress: f32) -> Self {
+    pub fn with_progress(&self, progress: Progress) -> Self {
         let mut clone = self.clone();
         clone.progress = Some(progress);
         clone
@@ -37,7 +60,7 @@ impl SpanData {
         &self.name
     }
 
-    pub fn progress(&self) -> Option<f32> {
+    pub fn progress(&self) -> Option<Progress> {
         self.progress
     }
 }
