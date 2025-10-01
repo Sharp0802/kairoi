@@ -162,12 +162,8 @@ impl Span {
 
     pub fn current() -> SpanId {
         CURRENT
-            .get()
-            .borrow()
-            .0
-            .upgrade()
-            .expect("CURRENT expired")
-            .id()
+            .try_with(|v| v.borrow().upgrade().expect("CURRENT expired").0.id)
+            .unwrap_or_else(|_| ROOT.0.id)
     }
 
     fn changed() -> bool {
