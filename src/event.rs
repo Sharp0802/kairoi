@@ -12,14 +12,44 @@ pub enum Level {
     Trace,
 }
 
+#[derive(Debug, Clone)]
+pub struct Log {
+    timestamp: SystemTime,
+    level: Level,
+    message: String,
+    span_id: SpanId,
+}
+
+impl Log {
+    fn new(level: Level, message: String) -> Self {
+        Self {
+            timestamp: SystemTime::now(),
+            level,
+            message,
+            span_id: Span::current(),
+        }
+    }
+
+    pub fn timestamp(&self) -> SystemTime {
+        self.timestamp
+    }
+
+    pub fn level(&self) -> Level {
+        self.level
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    pub fn span_id(&self) -> SpanId {
+        self.span_id
+    }
+}
+
 #[derive(Debug)]
 pub enum Event {
-    Log {
-        timestamp: SystemTime,
-        level: Level,
-        message: String,
-        span_id: SpanId,
-    },
+    Log(Log),
     SpanBegin {
         id: SpanId,
     },
@@ -34,12 +64,7 @@ pub enum Event {
 
 impl Event {
     pub fn log(level: Level, message: String) -> Self {
-        Self::Log {
-            timestamp: SystemTime::now(),
-            level,
-            message,
-            span_id: Span::current(),
-        }
+        Event::Log(Log::new(level, message))
     }
 
     pub fn span_begin(id: SpanId) -> Self {
