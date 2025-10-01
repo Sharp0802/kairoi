@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::SystemTime;
+use std::time::Instant;
 
 pub trait Handler: Send {
     fn handle(&self, event: &Event);
@@ -42,10 +42,9 @@ impl GlobalHandler {
 
         let token_clone = token.clone();
         let handle = thread::spawn(move || {
-            let mut last_update = SystemTime::now();
+            let mut last_update = Instant::now();
             let mut root: Span = Span::new();
             while token_clone.load(Ordering::Acquire) {
-                let now = SystemTime::now();
                 match rx().try_recv() {
                     Ok(event) => {
                         for x in &handlers {
@@ -57,12 +56,12 @@ impl GlobalHandler {
                     }
                     Err(TryRecvError::Empty) => {
                         const FPS: u128 = 10;
-                        if now.duration_since(last_update).unwrap().as_millis() < (1000 / FPS) {
+                        if last_update.elapsed().as_millis() < (1000 / FPS) {
                             continue;
                         }
                     }
                 };
-                last_update = now;
+                last_update = Instant::now();
 
                 Span::get_root(&mut root);
                 for x in &handlers {
