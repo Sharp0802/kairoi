@@ -172,6 +172,24 @@ impl Span {
         self.id
     }
 
+    fn find_depth_impl(&self, id: SpanId, depth: usize) -> Option<usize> {
+        if self.id == id {
+            return Some(depth);
+        }
+
+        for x in self.children.lock().iter() {
+            if let Some(v) = x.0.find_depth_impl(id, depth + 1) {
+                return Some(v);
+            }
+        }
+
+        None
+    }
+
+    pub fn find_depth(&self, id: SpanId) -> Option<usize> {
+        self.find_depth_impl(id, 0)
+    }
+
     pub async fn scope<T, F: AsyncFnOnce(SpanScope) -> T>(f: F) -> T {
         let current = CURRENT.try_with(|v| {
             let cell = v.borrow_mut();
