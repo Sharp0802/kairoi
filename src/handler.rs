@@ -75,7 +75,9 @@ impl GlobalHandler {
 
     pub fn join(self) {
         self.token.store(false, Ordering::Release);
-        self.handle.join().unwrap();
+        if let Err(e) = self.handle.join() {
+            std::panic::resume_unwind(e);
+        }
     }
 
     pub fn builder() -> GlobalHandlerBuilder {
