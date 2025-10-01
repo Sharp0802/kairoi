@@ -1,18 +1,16 @@
 #![feature(async_fn_traits)]
 #![feature(unboxed_closures)]
 
-mod event;
-mod span;
 mod channel;
-mod macros;
+mod event;
+mod format;
 mod handler;
+mod handlers;
+mod macros;
+mod span;
 
-pub use event::Event;
-pub use event::Level;
-
-pub use span::Span;
-pub use span::SpanScope;
-pub use span::SpanData;
-
-pub use handler::Handler;
-pub use handler::GlobalHandler;
+pub use event::*;
+pub use format::*;
+pub use handler::*;
+pub use handlers::*;
+pub use span::*;
