@@ -5,8 +5,9 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::atomic::Ordering::AcqRel;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, Weak};
+use std::sync::{Arc, Weak};
 use std::time::SystemTime;
+use parking_lot::{Mutex, MutexGuard};
 use tokio::task_local;
 
 #[derive(Debug, Copy, Clone)]
@@ -133,7 +134,7 @@ impl Span {
         let id = new.id;
         let new_ref = SpanRef::from(new);
 
-        let mut guard = parent.0.children.lock().unwrap();
+        let mut guard = parent.0.children.lock();
         let i = guard.len();
         guard.push(new_ref.clone());
         drop(guard);
@@ -148,7 +149,7 @@ impl Span {
             })
             .await;
 
-        let mut guard = parent.0.children.lock().unwrap();
+        let mut guard = parent.0.children.lock();
         guard.remove(i);
         drop(guard);
 
@@ -162,7 +163,6 @@ impl Span {
     pub fn children(&self) -> impl Iterator<Item = Span> {
         self.children
             .lock()
-            .unwrap()
             .clone()
             .into_iter()
             .map(|v| v.0.deref().clone())
