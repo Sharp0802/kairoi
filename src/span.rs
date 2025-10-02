@@ -1,13 +1,13 @@
 use crate::event::Event;
 use lazy_static::lazy_static;
+use parking_lot::{Mutex, MutexGuard};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::sync::atomic::Ordering::AcqRel;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::Ordering::{AcqRel, Relaxed, Release};
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Weak};
 use std::time::SystemTime;
-use parking_lot::{Mutex, MutexGuard};
 use tokio::task_local;
 
 #[derive(Debug, Copy, Clone)]
@@ -141,7 +141,7 @@ impl Span {
 
         Event::span_begin(id).submit();
 
-        Self::set_changed(true);
+        CHANGED.store(true, Release);
 
         let v = CURRENT
             .scope(RefCell::new(new_ref.downgrade()), async move {
@@ -207,17 +207,9 @@ impl Span {
             .unwrap_or_else(|_| ROOT.0.id)
     }
 
-    fn changed() -> bool {
-        CHANGED.load(Ordering::Acquire)
-    }
-
-    fn set_changed(changed: bool) {
-        CHANGED.store(changed, Ordering::Release);
-    }
-
     pub(crate) fn get_root(container: &mut Span) {
-        if Self::changed() {
-            *container = ROOT.0.deref().clone()
+        if CHANGED.compare_exchange(true, false, AcqRel, Relaxed).is_ok() {
+            *container = ROOT.0.deref().clone();
         }
     }
 }
