@@ -87,7 +87,8 @@ impl Event {
             v = e;
             i += 1;
             if i == 5 {
-                eprintln!("[kairoi] failed to submit event to event queue")
+                eprintln!("[kairoi] failed to submit event to event queue");
+                break;
             }
         }
     }
