@@ -81,6 +81,7 @@ impl Handler for ConsoleHandler {
 
     fn tick(&self, root: &Span) -> Result<(), SendSyncError> {
         let mut lock = stdout().lock();
+
         let mut writer = Writer::Io(&mut lock);
 
         if *self.cursor_saved.borrow() {
@@ -104,6 +105,10 @@ impl Handler for ConsoleHandler {
             self.cursor_saved.replace(true);
             self.print(&mut writer, root, 0)?;
         }
+
+        drop(writer);
+
+        std::io::Write::flush(&mut lock)?;
 
         Ok(())
     }

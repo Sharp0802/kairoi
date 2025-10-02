@@ -15,10 +15,7 @@ pub enum Writer<'a> {
 impl<'a> Write for Writer<'a> {
     fn write_fmt(&mut self, fmt: Arguments) -> Result<(), SendSyncError> {
         match self {
-            Writer::Io(w) => {
-                w.write_fmt(fmt)?;
-                w.flush()?;
-            }
+            Writer::Io(w) => w.write_fmt(fmt)?,
             Writer::Fmt(w) => w.write_fmt(fmt)?,
         }
 
