@@ -1,6 +1,7 @@
 use crate::span::{Span, SpanId};
 use crate::SpanData;
 use std::time::SystemTime;
+use crossbeam_channel::SendError;
 use crate::channel::tx;
 
 #[derive(Debug, Copy, Clone)]
@@ -80,6 +81,14 @@ impl Event {
     }
 
     pub fn submit(self) {
-        tx().send(self).unwrap();
+        let mut i = 0;
+        let mut v = self;
+        while let Err(SendError(e)) = tx().send(v) {
+            v = e;
+            i += 1;
+            if i == 5 {
+                eprintln!("[kairoi] failed to submit event to event queue")
+            }
+        }
     }
 }

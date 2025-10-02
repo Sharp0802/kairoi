@@ -1,9 +1,9 @@
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use lazy_static::lazy_static;
 use crate::event::Event;
+use crossbeam_channel::{bounded, Receiver, Sender};
+use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref CH: (Sender<Event>, Receiver<Event>) = unbounded::<Event>();
+    static ref CH: (Sender<Event>, Receiver<Event>) = bounded::<Event>(2048);
 }
 
 pub(crate) fn tx() -> &'static Sender<Event> {
