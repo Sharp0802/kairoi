@@ -1,6 +1,7 @@
 use crate::event::Event;
+use dashmap::DashMap;
 use lazy_static::lazy_static;
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::MutexGuard;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -13,15 +14,12 @@ use tokio::task_local;
 #[derive(Debug, Copy, Clone)]
 pub struct Progress {
     total: u64,
-    progress: u64
+    progress: u64,
 }
 
 impl Progress {
     pub fn new(total: u64, progress: u64) -> Self {
-        Self {
-            total,
-            progress,
-        }
+        Self { total, progress }
     }
 
     pub fn total(&self) -> u64 {
@@ -79,7 +77,7 @@ impl Default for SpanData {
 #[derive(Clone)]
 pub struct Span {
     id: SpanId,
-    children: Arc<Mutex<Vec<SpanRef>>>,
+    children: Arc<DashMap<SpanId, SpanRef>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -125,7 +123,7 @@ impl Span {
 
         Self {
             id: SpanId(ID.fetch_add(1, AcqRel)),
-            children: Arc::new(Mutex::new(Vec::new())),
+            children: Arc::new(DashMap::new()),
         }
     }
 
@@ -134,11 +132,7 @@ impl Span {
         let id = new.id;
         let new_ref = SpanRef::from(new);
 
-        let mut guard = parent.0.children.lock();
-        let i = guard.len();
-        guard.push(new_ref.clone());
-        drop(guard);
-
+        parent.0.children.insert(id, new_ref.clone()).unwrap();
         Event::span_begin(id).submit();
 
         CHANGED.store(true, Release);
@@ -149,10 +143,7 @@ impl Span {
             })
             .await;
 
-        let mut guard = parent.0.children.lock();
-        guard.remove(i);
-        drop(guard);
-
+        parent.0.children.remove(&id).unwrap();
         Event::span_end(id).submit();
 
         drop(new_ref);
@@ -160,12 +151,8 @@ impl Span {
         v
     }
 
-    pub fn children(&self) -> impl Iterator<Item = Span> {
-        self.children
-            .lock()
-            .clone()
-            .into_iter()
-            .map(|v| v.0.deref().clone())
+    pub fn children(&self) -> Vec<Span> {
+        self.children.iter().map(|v| v.0.deref().clone()).collect() // must collect: any reference to item of map can cause deadlock
     }
 
     pub fn id(&self) -> SpanId {
@@ -177,7 +164,11 @@ impl Span {
             return Some(depth);
         }
 
-        for x in self.children.lock().iter() {
+        if self.children.contains_key(&id) {
+            return Some(depth + 1);
+        }
+
+        for x in self.children.iter() {
             if let Some(v) = x.0.find_depth_impl(id, depth + 1) {
                 return Some(v);
             }
@@ -208,7 +199,10 @@ impl Span {
     }
 
     pub(crate) fn get_root(container: &mut Span) {
-        if CHANGED.compare_exchange(true, false, AcqRel, Relaxed).is_ok() {
+        if CHANGED
+            .compare_exchange(true, false, AcqRel, Relaxed)
+            .is_ok()
+        {
             *container = ROOT.0.deref().clone();
         }
     }
