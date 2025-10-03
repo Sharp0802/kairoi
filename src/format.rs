@@ -82,7 +82,7 @@ impl DefaultFormatter {
         Self::indent(to, depth)?;
 
         let value = value.value();
-        let elapsed = value.timestamp().elapsed().unwrap();
+        let elapsed = value.timestamp().elapsed().unwrap_or_default();
 
         let ch = vec!['⠖', '⠲', '⠴', '⠦'][((elapsed.as_millis() / 100) % 4) as usize];
 
