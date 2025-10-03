@@ -1,5 +1,5 @@
 use crate::error::SendSyncError;
-use crate::{Level, Log, SpanData};
+use crate::{Level, Log, SpanRef};
 use chrono::{DateTime, Local};
 use std::fmt::Arguments;
 
@@ -24,10 +24,10 @@ impl<'a> Write for Writer<'a> {
 }
 
 pub trait Formatter<T>: Send + Sync {
-    fn format(&self, to: &mut Writer, depth: usize, value: &T) -> Result<(), SendSyncError>;
+    fn format(&self, to: &mut Writer, value: &T) -> Result<(), SendSyncError>;
 }
 
-pub trait FormatterSet: Formatter<(Log, Option<SpanData>)> + Formatter<SpanData> {}
+pub trait FormatterSet: Formatter<Log> + Formatter<SpanRef> {}
 
 pub struct DefaultFormatter;
 
@@ -44,11 +44,7 @@ impl DefaultFormatter {
         Ok(())
     }
 
-    pub fn format_log(
-        to: &mut Writer,
-        _depth: usize,
-        (log, parent): &(Log, Option<SpanData>),
-    ) -> Result<(), SendSyncError> {
+    pub fn format_log(to: &mut Writer, log: &Log) -> Result<(), SendSyncError> {
         let t: DateTime<Local> = log.timestamp().into();
         let t = t.format("%+");
 
@@ -63,22 +59,29 @@ impl DefaultFormatter {
 
         let message = log.message();
 
-        let args = match &parent {
-            None => format_args!("\x1b[90m{t}\x1b[0m {level}\x1b[0m: {message}\n"),
-            Some(parent) => format_args!(
+        if let Some(parent) = &log.span().parent() {
+            to.write_fmt(format_args!(
                 "\x1b[90m{t}\x1b[0m {level}\x1b[0m \x1b[1m{}\x1b[0m: {message}\n",
-                parent.name()
-            ),
+                parent.value().name()
+            ))?;
+        } else {
+            to.write_fmt(format_args!(
+                "\x1b[90m{t}\x1b[0m {level}\x1b[0m: {message}\n"
+            ))?;
         };
-
-        to.write_fmt(args)?;
 
         Ok(())
     }
 
-    pub fn format_span(to: &mut Writer, depth: usize, value: &SpanData) -> Result<(), SendSyncError> {
-        Self::indent(to, if depth > 0 { depth - 1 } else { depth })?;
+    pub fn format_span(to: &mut Writer, value: &SpanRef) -> Result<(), SendSyncError> {
+        let depth = if value.depth() > 0 {
+            value.depth() - 1
+        } else {
+            value.depth()
+        };
+        Self::indent(to, depth)?;
 
+        let value = value.value();
         let elapsed = value.timestamp().elapsed().unwrap();
 
         let ch = vec!['⠖', '⠲', '⠴', '⠦'][((elapsed.as_millis() / 100) % 4) as usize];
@@ -110,15 +113,15 @@ impl DefaultFormatter {
     }
 }
 
-impl Formatter<(Log, Option<SpanData>)> for DefaultFormatter {
-    fn format(&self, to: &mut Writer, depth: usize, value: &(Log, Option<SpanData>)) -> Result<(), SendSyncError> {
-        Self::format_log(to, depth, value)
+impl Formatter<Log> for DefaultFormatter {
+    fn format(&self, to: &mut Writer, value: &Log) -> Result<(), SendSyncError> {
+        Self::format_log(to, value)
     }
 }
 
-impl Formatter<SpanData> for DefaultFormatter {
-    fn format(&self, to: &mut Writer, depth: usize, value: &SpanData) -> Result<(), SendSyncError> {
-        Self::format_span(to, depth, value)
+impl Formatter<SpanRef> for DefaultFormatter {
+    fn format(&self, to: &mut Writer, value: &SpanRef) -> Result<(), SendSyncError> {
+        Self::format_span(to, value)
     }
 }
 

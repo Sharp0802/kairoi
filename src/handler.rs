@@ -1,6 +1,6 @@
 use crate::channel::rx;
 use crate::error::SendSyncError;
-use crate::{Event, Span};
+use crate::{Event, Span, SpanRef};
 use crossbeam_channel::TryRecvError;
 use parking_lot::Mutex;
 use std::error::Error;
@@ -13,7 +13,7 @@ use std::time::Instant;
 
 pub trait Handler: Send {
     fn handle(&self, event: &Event) -> Result<(), SendSyncError>;
-    fn tick(&self, root: &Span) -> Result<(), SendSyncError>;
+    fn tick(&self, root: &SpanRef) -> Result<(), SendSyncError>;
 }
 
 pub struct GlobalHandlerBuilder {
@@ -119,7 +119,6 @@ impl GlobalHandler {
         mut handlers: Vec<Box<dyn Handler>>,
     ) -> Result<(), SendSyncError> {
         let mut last_update = Instant::now();
-        let mut root: Span = Span::new();
         while token.load(Ordering::Acquire) {
             match rx().try_recv() {
                 Ok(event) => {
@@ -136,7 +135,7 @@ impl GlobalHandler {
             };
             last_update = Instant::now();
 
-            Span::get_root(&mut root);
+            let root = Span::root();
             Self::foreach(&mut handlers, |handler| handler.tick(&root))?;
         }
 

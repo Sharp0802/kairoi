@@ -1,8 +1,7 @@
-use crate::span::{Span, SpanId};
-use crate::SpanData;
-use std::time::SystemTime;
-use crossbeam_channel::SendError;
 use crate::channel::tx;
+use crate::{Span, SpanRef};
+use crossbeam_channel::SendError;
+use std::time::SystemTime;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Level {
@@ -13,12 +12,12 @@ pub enum Level {
     Trace,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Log {
     timestamp: SystemTime,
     level: Level,
     message: String,
-    span_id: SpanId,
+    span: SpanRef,
 }
 
 impl Log {
@@ -27,7 +26,7 @@ impl Log {
             timestamp: SystemTime::now(),
             level,
             message,
-            span_id: Span::current(),
+            span: Span::current(),
         }
     }
 
@@ -43,24 +42,15 @@ impl Log {
         &self.message
     }
 
-    pub fn span_id(&self) -> SpanId {
-        self.span_id
+    pub fn span(&self) -> &SpanRef {
+        &self.span
     }
 }
 
-#[derive(Debug)]
 pub enum Event {
     Log(Log),
-    SpanBegin {
-        id: SpanId,
-    },
-    Span {
-        id: SpanId,
-        data: SpanData,
-    },
-    SpanEnd {
-        id: SpanId,
-    }
+    SpanBegin(SpanRef),
+    SpanEnd(SpanRef),
 }
 
 impl Event {
@@ -68,16 +58,12 @@ impl Event {
         Event::Log(Log::new(level, message))
     }
 
-    pub fn span_begin(id: SpanId) -> Self {
-        Self::SpanBegin { id }
+    pub fn span_begin(span: SpanRef) -> Self {
+        Self::SpanBegin(span)
     }
 
-    pub fn span(id: SpanId, data: SpanData) -> Self {
-        Self::Span { id, data }
-    }
-
-    pub fn span_end(id: SpanId) -> Self {
-        Self::SpanEnd { id }
+    pub fn span_end(span: SpanRef) -> Self {
+        Self::SpanEnd(span)
     }
 
     pub fn submit(self) {

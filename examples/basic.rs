@@ -1,4 +1,4 @@
-use kairoi::{info, AddConsoleHandler, GlobalHandler, Progress, Span, SpanData, SpanScope};
+use kairoi::{info, AddConsoleHandler, GlobalHandler, Progress, Span, Scope};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -8,8 +8,8 @@ async fn main() {
 
     info!("Hello");
 
-    Span::scope(async |scope: SpanScope| {
-        let data = SpanData::default().with_name("Hello World".to_string());
+    Span::scope(async |scope: Scope| {
+        let data = Span::default().with_name("Hello World".to_string());
 
         scope.update(data.with_progress(Progress::new(100, 0)));
         for i in 1..=100 {

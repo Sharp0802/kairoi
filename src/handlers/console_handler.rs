@@ -1,9 +1,9 @@
 use crate::error::SendSyncError;
 use crate::format::Write;
 use crate::format::{DefaultFormatter, FormatterSet, Writer};
-use crate::{Event, GlobalHandlerBuilder, Handler, Log, Span, SpanData, SpanId};
+use crate::{Event, GlobalHandlerBuilder, Handler, Log, SpanRef};
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::io::stdout;
 
 pub trait AddConsoleHandler<T> {
@@ -17,7 +17,6 @@ impl AddConsoleHandler<GlobalHandlerBuilder> for GlobalHandlerBuilder {
 }
 
 pub struct ConsoleHandler {
-    span_data: RefCell<HashMap<SpanId, SpanData>>,
     log_queue: RefCell<VecDeque<Log>>,
     cursor_saved: RefCell<bool>,
     formatter: Box<dyn FormatterSet>,
@@ -26,7 +25,6 @@ pub struct ConsoleHandler {
 impl ConsoleHandler {
     pub fn new() -> Self {
         Self {
-            span_data: RefCell::new(HashMap::new()),
             log_queue: RefCell::new(VecDeque::new()),
             cursor_saved: RefCell::new(false),
             formatter: Box::new(DefaultFormatter::new()),
@@ -35,15 +33,14 @@ impl ConsoleHandler {
 }
 
 impl ConsoleHandler {
-    fn print(&self, writer: &mut Writer, span: &Span, depth: usize) -> Result<(), SendSyncError> {
+    fn print(
+        &self,
+        writer: &mut Writer,
+        span: &SpanRef,
+        depth: usize,
+    ) -> Result<(), SendSyncError> {
         if depth > 0 {
-            let map_ref = self.span_data.borrow();
-            let data = match map_ref.get(&span.id()) {
-                None => return Ok(()),
-                Some(data) => data,
-            };
-
-            self.formatter.format(writer, depth, data)?;
+            self.formatter.format(writer, span)?;
         }
 
         for child in span.children() {
@@ -60,26 +57,14 @@ impl Handler for ConsoleHandler {
     fn handle(&self, event: &Event) -> Result<(), SendSyncError> {
         match event {
             Event::Log(log) => self.log_queue.borrow_mut().push_back(log.clone()),
-            Event::SpanBegin { id } => {
-                self.span_data
-                    .borrow_mut()
-                    .insert(id.clone(), SpanData::default());
-            }
-            Event::Span { id, data } => {
-                self.span_data
-                    .borrow_mut()
-                    .entry(id.clone())
-                    .and_modify(|v| *v = data.clone());
-            }
-            Event::SpanEnd { id } => {
-                self.span_data.borrow_mut().remove(id);
-            }
+            Event::SpanBegin(_) => {}
+            Event::SpanEnd(_) => {}
         }
 
         Ok(())
     }
 
-    fn tick(&self, root: &Span) -> Result<(), SendSyncError> {
+    fn tick(&self, root: &SpanRef) -> Result<(), SendSyncError> {
         let mut lock = stdout().lock();
 
         let mut writer = Writer::Io(&mut lock);
@@ -89,15 +74,7 @@ impl Handler for ConsoleHandler {
         }
 
         while let Some(log) = self.log_queue.borrow_mut().pop_front() {
-            let depth = root.find_depth(log.span_id()).unwrap_or(0);
-
-            let span: Option<SpanData> = if depth == 0 {
-                None
-            } else {
-                self.span_data.borrow().get(&log.span_id()).cloned()
-            };
-
-            self.formatter.format(&mut writer, depth, &(log, span))?
+            self.formatter.format(&mut writer, &log)?
         }
 
         {
