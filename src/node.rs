@@ -51,8 +51,8 @@ impl<T: Send + Sync> Node<T> {
         self.parent.upgrade()
     }
 
-    pub fn children(&self) -> Vec<Arc<Self>> {
-        self.children.iter().map(|v| v.deref().clone()).collect()
+    pub fn children(&self) -> impl Iterator<Item = Arc<Self>> {
+        self.children.iter().map(|v| v.deref().clone())
     }
 
 
