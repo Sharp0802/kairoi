@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub trait Handler: Send {
     fn handle(&self, event: &Event) -> Result<(), SendSyncError>;
@@ -119,24 +119,29 @@ impl GlobalHandler {
         mut handlers: Vec<Box<dyn Handler>>,
     ) -> Result<(), SendSyncError> {
         let mut last_update = Instant::now();
-        while token.load(Ordering::Acquire) {
-            match rx().try_recv() {
-                Ok(event) => {
-                    Self::foreach(&mut handlers, |handler| handler.handle(&event))?;
-                }
-                Err(TryRecvError::Disconnected) => {
-                    return Err("Channel has been disconnected".into());
-                }
-                Err(TryRecvError::Empty) => {
-                    if last_update.elapsed().as_millis() < (1000 / fps) as u128 {
-                        continue;
-                    }
-                }
-            };
-            last_update = Instant::now();
+        let frame_duration = Duration::from_millis(1000 / fps as u64);
 
-            let root = Span::root();
-            Self::foreach(&mut handlers, |handler| handler.tick(&root))?;
+        while token.load(Ordering::Acquire) {
+            loop {
+                match rx().try_recv() {
+                    Ok(event) => {
+                        Self::foreach(&mut handlers, |handler| handler.handle(&event))?;
+                    }
+                    Err(TryRecvError::Disconnected) => {
+                        return Err("Channel has been disconnected".into());
+                    }
+                    Err(TryRecvError::Empty) => {
+                        break;
+                    }
+                };
+            }
+            if last_update.elapsed() >= frame_duration {
+                let root = Span::root();
+                Self::foreach(&mut handlers, |handler| handler.tick(&root))?;
+                last_update = Instant::now();
+            }
+
+            thread::sleep(Duration::from_millis(10));
         }
 
         Ok(())
