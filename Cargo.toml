@@ -2,6 +2,10 @@
 name = "kairoi"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/sharp0802/kairoi"
+license = "MIT"
+keywords = ["logging"]
+description = "Another application-level tracing library"
 
 [dev-dependencies]
 tokio = { version = "1.47.1", features = ["full"] }
