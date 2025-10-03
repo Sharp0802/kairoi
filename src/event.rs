@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::channel::tx;
 use crate::{Span, SpanRef};
 use crossbeam_channel::SendError;
@@ -12,7 +13,6 @@ pub enum Level {
     Trace,
 }
 
-#[derive(Clone)]
 pub struct Log {
     timestamp: SystemTime,
     level: Level,
@@ -48,14 +48,14 @@ impl Log {
 }
 
 pub enum Event {
-    Log(Log),
+    Log(Arc<Log>),
     SpanBegin(SpanRef),
     SpanEnd(SpanRef),
 }
 
 impl Event {
     pub fn log(level: Level, message: String) -> Self {
-        Event::Log(Log::new(level, message))
+        Event::Log(Arc::new(Log::new(level, message)))
     }
 
     pub fn span_begin(span: SpanRef) -> Self {

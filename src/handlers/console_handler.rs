@@ -5,6 +5,8 @@ use crate::{Event, GlobalHandlerBuilder, Handler, Log, SpanRef};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io::stdout;
+use std::ops::Deref;
+use std::sync::Arc;
 
 pub trait AddConsoleHandler<T> {
     fn console_handler(self) -> T;
@@ -17,7 +19,7 @@ impl AddConsoleHandler<GlobalHandlerBuilder> for GlobalHandlerBuilder {
 }
 
 pub struct ConsoleHandler {
-    log_queue: RefCell<VecDeque<Log>>,
+    log_queue: RefCell<VecDeque<Arc<Log>>>,
     cursor_saved: RefCell<bool>,
     formatter: Box<dyn FormatterSet>,
 }
@@ -74,7 +76,7 @@ impl Handler for ConsoleHandler {
         }
 
         while let Some(log) = self.log_queue.borrow_mut().pop_front() {
-            self.formatter.format(&mut writer, &log)?
+            self.formatter.format(&mut writer, log.deref())?
         }
 
         {
