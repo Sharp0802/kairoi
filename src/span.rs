@@ -2,8 +2,6 @@ use crate::{Event, Node};
 use lazy_static::lazy_static;
 use parking_lot::MutexGuard;
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::Release;
 use std::sync::{Arc, Weak};
 use std::time::SystemTime;
 use tokio::task_local;
@@ -73,8 +71,6 @@ impl Default for Span {
     }
 }
 
-static CHANGED: AtomicBool = AtomicBool::new(true);
-
 lazy_static! {
     static ref ROOT: SpanRef = Arc::new(Node::new(Span::default()));
 }
@@ -84,10 +80,9 @@ task_local! {
 }
 
 impl Span {
-    async fn scope_with<T, F: AsyncFnOnce(Scope) -> T>(parent: &SpanRef, f: F) -> T {
-        let new = parent.add(Node::new(Self::default()));
+    pub async fn scope<T, F: AsyncFnOnce(Scope) -> T>(f: F) -> T {
+        let new = Self::current().add(Node::new(Self::default()));
 
-        CHANGED.store(true, Release);
         Event::span_begin(new.clone()).submit();
 
         let new_clone = new.clone();
@@ -103,18 +98,12 @@ impl Span {
         v
     }
 
-    pub async fn scope<T, F: AsyncFnOnce(Scope) -> T>(f: F) -> T {
-        let current = CURRENT.try_with(|v| v.upgrade().expect("CURRENT expired"));
-        match current {
-            Ok(current) => Self::scope_with(&current, f).await,
-            Err(_) => Self::scope_with(&ROOT, f).await,
-        }
-    }
-
     pub fn current() -> SpanRef {
         CURRENT
-            .try_with(|v| v.upgrade().expect("CURRENT expired"))
-            .unwrap_or_else(|_| ROOT.clone())
+            .try_with(|v| v.upgrade())
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| ROOT.clone())
     }
 
     pub fn root() -> SpanRef {
