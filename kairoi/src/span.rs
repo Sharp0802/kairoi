@@ -1,7 +1,5 @@
 use crate::{Event, Node};
 use lazy_static::lazy_static;
-use parking_lot::MutexGuard;
-use std::marker::PhantomData;
 use std::sync::{Arc, Weak};
 use std::time::SystemTime;
 use tokio::task_local;
@@ -112,16 +110,12 @@ impl Span {
 }
 
 pub struct Scope {
-    _marker: PhantomData<MutexGuard<'static, ()>>,
     node: SpanRef,
 }
 
 impl Scope {
     fn new(node: SpanRef) -> Self {
-        Self {
-            _marker: Default::default(),
-            node,
-        }
+        Self { node }
     }
 
     pub fn update(&self, data: Span) {
