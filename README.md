@@ -1,5 +1,7 @@
 # `kairoi`
 
+![](https://img.shields.io/crates/v/kairoi)
+
 Kairoi is an application-level tracing library.
 
 ## How to use?
