@@ -25,6 +25,6 @@ async fn main() {
 
     info!("Hello");
     some_instrument().await;
-
-    global_handler.join();
+    
+    drop(global_handler);
 }

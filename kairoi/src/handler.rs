@@ -46,7 +46,7 @@ impl GlobalHandlerBuilder {
 
 pub struct GlobalHandler {
     token: Arc<AtomicBool>,
-    handle: JoinHandle<Result<(), SendSyncError>>,
+    handle: Option<JoinHandle<Result<(), SendSyncError>>>,
 }
 
 struct AggregatedError(Mutex<Vec<SendSyncError>>);
@@ -165,17 +165,22 @@ impl GlobalHandler {
             }
         });
 
-        Self { token, handle }
-    }
-
-    pub fn join(self) {
-        self.token.store(false, Ordering::Release);
-        if let Err(e) = self.handle.join() {
-            std::panic::resume_unwind(e);
+        Self {
+            token,
+            handle: Some(handle),
         }
     }
 
     pub fn builder() -> GlobalHandlerBuilder {
         GlobalHandlerBuilder::new()
+    }
+}
+
+impl Drop for GlobalHandler {
+    fn drop(&mut self) {
+        self.token.store(false, Ordering::Release);
+        if let Err(e) = self.handle.take().unwrap().join() {
+            std::panic::resume_unwind(e);
+        }
     }
 }

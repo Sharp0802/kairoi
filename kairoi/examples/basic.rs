@@ -22,6 +22,6 @@ async fn main() {
         }
     })
     .await;
-
-    global_handler.join();
+    
+    drop(global_handler);
 }
