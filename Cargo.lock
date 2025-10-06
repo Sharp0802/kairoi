@@ -199,14 +199,14 @@ dependencies = [
  "chrono",
  "crossbeam-channel",
  "dashmap",
- "kairoi-macro",
+ "kairoi-macros",
  "lazy_static",
  "parking_lot",
  "tokio",
 ]
 
 [[package]]
-name = "kairoi-macro"
+name = "kairoi-macros"
 version = "0.1.0"
 dependencies = [
  "quote",

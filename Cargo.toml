@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "kairoi",
-    "kairoi-macro"
+    "kairoi-macros"
 ]

@@ -18,14 +18,14 @@ pub fn instrument(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let output = quote! {
-        #vis #sig {
-            let span_data = kairoi::Span::default().with_name(#fn_name_str.to_string());
-            kairoi::Span::scope(async move |scope| {
-                scope.update(span_data);
-                #block
-            }).await
-        }
-    };
+            #vis #sig {
+                let span_data = kairoi::Span::default().with_name(#fn_name_str.to_string());
+                kairoi::Span::scope(async move |scope| {
+                    scope.update(span_data);
+                    #block
+                }).await
+            }
+        };
 
     TokenStream::from(output)
 }
