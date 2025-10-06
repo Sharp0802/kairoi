@@ -3,3 +3,4 @@ members = [
     "kairoi",
     "kairoi-macros"
 ]
+resolver = "3"
