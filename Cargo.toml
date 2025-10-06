@@ -17,3 +17,4 @@ lazy_static = "1.5.0"
 tokio = { version = "1.47.1", features = ["time", "rt"] }
 parking_lot = "0.12.4"
 dashmap = "6.1.0"
+kairoi-macro = { path = "kairoi-macro", version = "0.1.0" }

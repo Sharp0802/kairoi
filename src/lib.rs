@@ -18,3 +18,5 @@ pub use handler::*;
 pub use handlers::*;
 pub use node::*;
 pub use span::*;
+
+pub use kairoi_macro::instrument;
