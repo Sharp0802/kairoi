@@ -1,6 +1,7 @@
 # `kairoi`
 
-![](https://img.shields.io/crates/v/kairoi)
+[![](https://img.shields.io/crates/v/kairoi)](https://crates.io/crates/kairoi)
+[![Rust](https://github.com/Sharp0802/kairoi/actions/workflows/rust.yml/badge.svg)](https://github.com/Sharp0802/kairoi/actions/workflows/rust.yml)
 
 Kairoi is an application-level tracing library.
 
