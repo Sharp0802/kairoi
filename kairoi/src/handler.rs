@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::thread::JoinHandle;
+use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 
 pub trait Handler: Send {
@@ -178,6 +178,8 @@ impl GlobalHandler {
 
 impl Drop for GlobalHandler {
     fn drop(&mut self) {
+        sleep(Duration::from_millis(100));
+
         self.token.store(false, Ordering::Release);
         if let Err(e) = self.handle.take().unwrap().join() {
             std::panic::resume_unwind(e);
